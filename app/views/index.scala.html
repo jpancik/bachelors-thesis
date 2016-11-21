@@ -1,0 +1,161 @@
+@(message: String)
+
+@jsContent = {
+    <script>
+        var serverReply = [];
+        var suggestionsUsed = [];
+
+        var autocompleteList = [];
+
+        var $inputTextToTranslate = $("#input-text-to-translate");
+        var $inputTranslated = $("#input-translated");
+        var $divRequestResult = $("#div-request-result");
+
+        String.prototype.capitalizeFirstLetter = function() {
+            return this.charAt(0).toUpperCase() + this.slice(1);
+        }
+
+        $(document).ready(function() {
+            $("#button-request-translation").click(function(e) {
+                console.log("Translating: " + $inputTextToTranslate.val());
+                $("#input-translated").val("");
+
+                $.get("/suggestions", {
+                    sentence: $inputTextToTranslate.val()
+                }, function (data) {
+                    console.log("Received from server:");
+                    console.log(data);
+
+                    $divRequestResult.empty();
+                    $divRequestResult.append(
+                            "<p>" +
+                            "Received " + data.length + " suggestions." +
+                            "</p>"
+                    );
+
+                    serverReply = data;
+                    refreshAutocomplete();
+                });
+
+                e.preventDefault();
+            });
+
+            function refreshAutocomplete() {
+                $("#table-autocomplete").empty();
+                $("#table-autocomplete").append(
+                        "<tr><th>Key</th><th>Word</th><th>Index</th></tr>"
+                );
+                autocompleteList = [];
+
+                var translated = $inputTranslated.val().replace(/[,.]/g, "").toLowerCase();
+                var translatedWords = translated.split(" ");
+                var translatedLastWord = translatedWords[translatedWords.length - 1];
+
+                if(translatedLastWord.length > 0) {
+                    var filtered = [];
+                    var filteredIndex = [];
+
+                    for(var i = 0; i < serverReply.length; i++) {
+                        if(serverReply[i].translation.startsWith(translatedLastWord)) {
+                            filtered.push(serverReply[i]);
+                            filteredIndex.push(i);
+                        }
+                    }
+
+                    console.log("Filtered hypothesis: ");
+                    console.log(filtered);
+
+                    for(var i = 0; i < filtered.length; i++) {
+                        autocompleteList.push({
+                            word: filtered[i].translation,
+                            index: filteredIndex[i]
+                        });
+                    }
+
+                    var keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"];
+                    for(var i = 0; i < autocompleteList.length && i < keys.length; i++) {
+                        $("#table-autocomplete").append(
+                                "<tr><td>" + keys[i] + "</td><td>" + autocompleteList[i].word + "</td><td>" + autocompleteList[i].index + "</td></tr>"
+                        );
+                    }
+                }
+            }
+
+            (function() {
+                // 1, 2, 3, 4, 5
+                var keys = [49, 50, 51, 52, 53, 54, 55, 56, 57, 58];
+                $inputTranslated.keypress(function (event) {
+                    for (var i = 0; i < keys.length; i++) {
+                        if (event.which == keys[i] && i < autocompleteList.length) {
+                            console.log("pressed key " + keys[i]);
+                            event.preventDefault();
+
+                            var words = $inputTranslated.val().split(" ");
+                            words.pop();
+
+                            if(words.length > 0) {
+                                $inputTranslated.val(words.join(" ") + " " + autocompleteList[i].word + " ");
+                            } else {
+                                $inputTranslated.val(autocompleteList[i].word.capitalizeFirstLetter() + " ");
+                            }
+                            suggestionsUsed.push(autocompleteList[i].index);
+                            refreshAutocomplete();
+                        }
+                    }
+                });
+
+                $("#input-translated").on("input", function (event) {
+                    console.log("Running refresh autocomplete because on change event called.");
+                    refreshAutocomplete();
+                });
+            })();
+        });
+    </script>
+}
+
+@main("Dictionary Prototype", jsContent) {
+    <div class="container">
+        <div class="row">
+            <h3>1. Enter sentence you wish to translate:</h3>
+            <div class="col-md-12">
+                <input type="text" class="form-control" id="input-text-to-translate" value="I love my dog.">
+            </div>
+        </div>
+
+        <div class="row">
+            <h3>2. Request suggestions for the sentence from server.</h3>
+            <div class="col-md-12">
+                <div class="row">
+                    <div class="col-md-12">
+                        <button type="button" class="btn btn-lg btn-success" id="button-request-translation">Request</button>
+                    </div>
+                </div>
+                <div class="row" style="padding-top: 20px;">
+                    <div class="col-md-12" id="div-request-result">
+                        <p>Nothing requested.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <h3>3. Start translating</h3>
+            <div class="col-md-12">
+                <input type="text" class="form-control" id="input-translated">
+            </div>
+        </div>
+
+        <div class="row">
+            <br />
+            <div class="col-md-6">
+                <table class="table table-bordered table-hover" id="table-autocomplete">
+                    <tr>
+                        <th>Key</th>
+                        <th>Word</th>
+                        <th>Index</th>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div><!-- /.container -->
+}
