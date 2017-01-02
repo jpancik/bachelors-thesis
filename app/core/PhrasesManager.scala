@@ -4,31 +4,43 @@ import java.io.File
 import java.nio.file.{Paths, Files}
 import javax.inject.Singleton
 
+import org.apache.commons.lang3.StringEscapeUtils
+
 import scala.collection.mutable.{ArrayBuffer, HashMap}
 import scala.io.Source
 
 @Singleton
 class PhrasesManager {
     println("Phrases manager is being initialized!")
-    val phrases : HashMap[String, ArrayBuffer[String]] = new HashMap[String, ArrayBuffer[String]]
+    val phrases : HashMap[String, ArrayBuffer[Phrase]] = new HashMap[String, ArrayBuffer[Phrase]]
 
-    println("Loading file: en-cs.slovnik.txt")
+    val file = "en-cs.phrase-table.1000.txt"
+    println("Loading file: " + file)
     try {
-        val matchingRegex = """^([^\t]+)\t([^\t]+)""".r
-        for (line <- Source.fromFile("data/en-cs.slovnik.txt").getLines()) {
+        val matchingRegex = """^([^\t|]+) \|\|\| ([^\t|]+) \|\|\| [^ ]+ [^ ]+ ([^ ]+) ([^ ]+) .*$""".r
+        var lines = 0
+        for (line <- Source.fromFile("data/" + file).getLines()) {
+            lines += 1
+            if(lines % 1000000 == 0) {
+                println("Processed " + (lines/1000) + "k lines.")
+            }
+
             val result = matchingRegex.findFirstMatchIn(line)
-            if (result.isDefined) {
-                val original = result.get.group(1)
-                val translation = result.get.group(2)
+            if (result.isDefined && lines % 2 == 0) {
+                val original = StringEscapeUtils.unescapeHtml4(result.get.group(1))
+                val translation = StringEscapeUtils.unescapeHtml4(result.get.group(2))
+                val directProbability = result.get.group(3).toFloat
+                val lexicalWeighting = result.get.group(4).toFloat
+                val phrase = new Phrase(original, translation, directProbability, lexicalWeighting)
                 if (phrases.contains(original)) {
                     phrases get(original) match {
                         case None =>
                         case Some(list) =>
-                            list += translation
+                            list += phrase
                     }
                 } else {
-                    val list = new ArrayBuffer[String]
-                    list += translation
+                    val list = new ArrayBuffer[Phrase]
+                    list += phrase
                     phrases.put(original, list)
                 }
             }
@@ -40,10 +52,23 @@ class PhrasesManager {
         }
     }
     println("Finished loading phrases.")
-    getSuggestions("I doesn't, know my dog!")
+    //getSuggestions("i have found a new car on the street in front of the house")
+
+    class TreeNode(val phrases: ArrayBuffer[Suggestion],
+                        val translated: ArrayBuffer[Boolean],
+                        val children: ArrayBuffer[TreeNode]) {
+
+        def getProbability: Float = {
+            var out = 1.0f
+            for (phrase <- phrases) {
+                out *= phrase.directProbability
+            }
+            out
+        }
+    }
 
     def getSuggestions(input: String): List[Suggestion] = {
-        val splitted = input.replaceAll("[,.!?]", "").split(' ');
+        val splitted = input.replaceAll("[,.!?]", "").toLowerCase.split(' ');
 
         val out = new ArrayBuffer[Suggestion]
 
@@ -64,10 +89,15 @@ class PhrasesManager {
 
                 phrases get(string) match {
                     case None =>
-                    case Some(translationList) =>
-                        for (translation <- translationList) {
-                            print(" !dictionary contains:\"" + translation + "\"! ")
-                            out += new Suggestion(translation, string, i, j)
+                    case Some(phrasesList) =>
+                        for (phrase <- phrasesList) {
+                            print(" !dictionary contains:\"" + phrase.translation + "\"! ")
+                            out += new Suggestion(phrase.translation,
+                                phrase.original,
+                                i,
+                                j,
+                                phrase.directProbability,
+                                phrase.lexicalWeighting)
                         }
                 }
 
@@ -75,6 +105,6 @@ class PhrasesManager {
             }
         }
 
-        return out.toList
+        out.toList
     }
 }

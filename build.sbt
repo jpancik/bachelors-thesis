@@ -6,7 +6,13 @@ lazy val `bachelorsthesisimplementation` = (project in file(".")).enablePlugins(
 
 scalaVersion := "2.11.7"
 
-libraryDependencies ++= Seq( jdbc , cache , ws   , specs2 % Test )
+libraryDependencies ++= Seq(
+    jdbc,
+    cache,
+    ws,
+    specs2 % Test,
+    "org.apache.commons" % "commons-lang3" % "3.5"
+)
 
 unmanagedResourceDirectories in Test <+=  baseDirectory ( _ /"target/web/public/test" )  
 

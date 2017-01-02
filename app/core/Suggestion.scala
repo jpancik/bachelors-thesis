@@ -2,7 +2,12 @@ package core
 
 import play.api.libs.json._
 
-case class Suggestion(val translation: String, val original: String, val indexStart: Int, val indexEnd: Int)
+case class Suggestion(val translation: String,
+                      val original: String,
+                      val beginIndex: Int,
+                      val endIndex: Int,
+                      val directProbability: Float,
+                      val lexicalWeighting: Float)
 
 object Suggestion {
     implicit val suggestionFormat = Json.writes[Suggestion]
