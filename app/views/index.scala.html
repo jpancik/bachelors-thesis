@@ -2,14 +2,19 @@
 
 @jsContent = {
     <script>
-        var serverReply = [];
-        var suggestionsUsed = [];
-
-        var autocompleteList = [];
+        var serverPhrases = [];
 
         var $inputTextToTranslate = $("#input-text-to-translate");
         var $inputTranslated = $("#input-translated");
         var $divRequestResult = $("#div-request-result");
+
+        var treeRoot = null;
+        var currentNode = null;
+        var currentNodeCharIndex = null;
+        var lastCompletedNode = null;
+        var expectSpace = false;
+
+        var currentPhraseInput = "";
 
         String.prototype.capitalizeFirstLetter = function() {
             return this.charAt(0).toUpperCase() + this.slice(1);
@@ -34,7 +39,7 @@
                             "</p>"
                     );
 
-                    serverReply = data;
+                    serverPhrases = data;
                     refreshAutocomplete();
                     buildTree(text, data);
                 });
@@ -47,6 +52,7 @@
                 $("#table-autocomplete").append(
                         "<tr><th>Key</th><th>Word</th><th>Index</th></tr>"
                 );
+                /*
                 autocompleteList = [];
 
                 var translated = $inputTranslated.val().replace(/[,.]/g, "").toLowerCase();
@@ -79,12 +85,126 @@
                             "<tr><td>" + keys[i] + "</td><td>" + autocompleteList[i].word + "</td><td>" + autocompleteList[i].index + "</td></tr>"
                     );
                 }
+                */
             }
 
             (function() {
-                // 1, 2, 3, 4, 5
-                var keys = [49, 50, 51, 52, 53, 54, 55, 56, 57, 58];
+                // 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
+                //var keys = [49, 50, 51, 52, 53, 54, 55, 56, 57, 58];
+
                 $inputTranslated.keypress(function (event) {
+                    var inChar = String.fromCharCode(event.which);
+
+                    if (treeRoot != null) {
+                        if (currentNodeCharIndex == null && !(expectSpace && inChar != " ")) {
+                            if (inChar == " ") {
+                                if (expectSpace) {
+                                    expectSpace = false;
+                                    console.log("Got space.");
+                                } else {
+                                    console.log("Ignoring whitespace.");
+                                }
+                            } else {
+                                // Looking for the next child node.
+                                console.log("Looking for a new next node.");
+                                for (var i = 0; i < currentNode.children.length; i++) {
+                                    if(currentNode.children[i].getLastPhrase().translation.startsWith(inChar)) {
+                                        console.log("Found a new node with translation: " + currentNode.children[i].getLastPhrase().translation);
+                                        lastCompletedNode = currentNode;
+                                        currentNode = currentNode.children[i];
+
+                                        currentNodeCharIndex = 1;
+                                        currentPhraseInput = inChar;
+                                        if(currentNodeCharIndex >= currentNode.getLastPhrase().translation.length) {
+                                            currentNodeCharIndex = null;
+                                            expectSpace = true;
+                                        }
+
+                                        break;
+                                    }
+                                }
+                            }
+                        } else {
+                            currentPhraseInput += inChar;
+
+                            // Verify if character matches the one supposed to be in the node.
+                            if (currentNodeCharIndex != null && currentNode.getLastPhrase().translation[currentNodeCharIndex] == inChar) {
+                                // Ok.
+                                console.log("Character entered matches phrase translation '" + currentNode.getLastPhrase().translation + "'.");
+                                currentNodeCharIndex += 1;
+                                if(currentNodeCharIndex >= currentNode.getLastPhrase().translation.length) {
+                                    currentNodeCharIndex = null;
+                                    expectSpace = true;
+                                }
+                            } else {
+                                // Generate all possible nodes here and try to look in them as well.
+                                var regenerate = true;
+                                if(lastCompletedNode != null) {
+                                    console.log("--");
+                                    console.log("Looking for a new child from previous node with prefix '" + currentPhraseInput + "'.");
+                                    console.log("Prev node:");
+                                    console.log(lastCompletedNode);
+                                    console.log("--");
+                                    for (var i = 0; i < lastCompletedNode.children.length; i++) {
+                                        if(lastCompletedNode.children[i].getLastPhrase().translation.startsWith(currentPhraseInput)
+                                                || lastCompletedNode.children[i].getLastPhrase().translation.startsWith(currentPhraseInput.slice(0, -1))) {
+                                            console.log("Found a new node replacement with translation: " + lastCompletedNode.children[i].getLastPhrase().translation);
+                                            currentNode = lastCompletedNode.children[i];
+
+                                            currentNodeCharIndex += 1;
+                                            if(currentNodeCharIndex >= currentNode.getLastPhrase().translation.length) {
+                                                currentNodeCharIndex = null;
+                                                expectSpace = true;
+                                            }
+
+                                            regenerate = false;
+                                            break;
+                                        }
+
+                                        //TEST: to go deeper
+                                        if(currentPhraseInput.startsWith(lastCompletedNode.children[i].getLastPhrase().translation)) {
+                                            var length = lastCompletedNode.children[i].getLastPhrase().translation.length;
+                                            var node = lastCompletedNode.children[i];
+
+                                            var doBreak = false;
+                                            for (var j = 0; j < node.children.length; j++) {
+                                                // Remove whitespace between phrase
+                                                var test11 = node.children[j].getLastPhrase().translation;
+                                                var test12 = currentPhraseInput.slice(length + 1, currentPhraseInput.length);
+                                                var test1 = test11.startsWith(test12);
+                                                var test2 = currentPhraseInput.length <= length + 1 + node.children[j].getLastPhrase().translation.length;
+
+                                                if(node.children[j].getLastPhrase().translation.startsWith(currentPhraseInput.slice(length + 1, currentPhraseInput.length))
+                                                    && currentPhraseInput.length <= length + 1 + node.children[j].getLastPhrase().translation.length) {
+                                                    console.log("!deep! Found a new node replacement with translation: " + node.getLastPhrase().translation + "_" + node.children[j].getLastPhrase().translation);
+                                                    currentNode = node.children[j];
+
+                                                    currentNodeCharIndex = currentPhraseInput.length - (length + 1);
+                                                    if(currentNodeCharIndex >= currentNode.getLastPhrase().translation.length) {
+                                                        currentNodeCharIndex = null;
+                                                    }
+                                                    doBreak = true;
+                                                    regenerate = false;
+                                                    break;
+                                                }
+                                            }
+                                            if (doBreak) {
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+
+                                if (regenerate) {
+                                    console.log("Doesn't match any nodes. Updating translation matrix (NOT) and will generate new tree. (NOT)");
+                                    treeRoot = null;
+                                    currentNode = null;
+                                    currentNodeCharIndex = null;
+                                }
+                            }
+                        }
+                    }
+                    /*
                     for (var i = 0; i < keys.length; i++) {
                         if (event.which == keys[i] && i < autocompleteList.length) {
                             console.log("pressed key " + keys[i]);
@@ -102,12 +222,15 @@
                             refreshAutocomplete();
                         }
                     }
+                    */
                 });
 
+                /*
                 $("#input-translated").on("input", function (event) {
                     console.log("Running refresh autocomplete because on change event called.");
                     refreshAutocomplete();
                 });
+                */
             })();
 
             // Source: http://stackoverflow.com/questions/5199901/how-to-sort-an-associative-array-by-its-values-in-javascript
@@ -136,7 +259,7 @@
                     this.probability *= phrase.directProbability;
                 };
 
-                this.generateChildren = function(serverPhrases, iterations, out) {
+                this.generateChildren = function(serverPhrases, iterations) {
                     // Generate all next phrases for this node.
                     var newChildren = [];
                     for (var j = 0; j < serverPhrases.length; j++) {
@@ -173,48 +296,95 @@
                     if (iterations - 1 > 0 || this.children.length == 0) {
                         // Generate next phrases for all new children.
                         for (var j = 0; j < this.children.length; j++) {
-                            this.children[j].generateChildren(serverPhrases, iterations - 1, out);
+                            this.children[j].generateChildren(serverPhrases, iterations - 1);
                         }
+                    }
+                };
+
+                this.getLastStepChildren = function() {
+                    if(this.children.length == 0) {
+                        return [this];
                     } else {
-                        if (typeof out != 'undefined') {
-                            for (var j = 0; j < this.children.length; j++) {
-                                out.push(this.children[j]);
+                        var out = [];
+                        for (var j = 0; j < this.children.length; j++) {
+                            var children = this.children[j].getLastStepChildren();
+                            for (var i = 0; i < children.length; i++) {
+                                out.push(children[i]);
                             }
                         }
+                        return out;
+                    }
+                };
+
+                this.getLastPhrase = function() {
+                    if (this.phrases.length == 0) {
+                        return null;
+                    } else {
+                        return this.phrases[this.phrases.length - 1];
                     }
                 };
             };
 
-            function buildTree(originalPhrase, serverPhrases) {
-                var originalPhraseLength = originalPhrase.split(" ").length;
-                var origin = new TreeNode([], [], []);
-                for (var i = 0; i < originalPhraseLength; i++) {
-                    origin.translated.push(false);
-                }
-                var test = [];
-                origin.generateChildren(serverPhrases, 3, test);
-
-                console.log("origin: ");
-                console.log(origin);
-
-
+            function groupAndSortTreeNodesByPhraseTranslation(index, treeNodes) {
                 var firstPhraseGrouped = {};
-                test.map(function (treeNode) {
-                    if (treeNode.phrases[0].translation in firstPhraseGrouped) {
-                        firstPhraseGrouped[treeNode.phrases[0].translation] += treeNode.probability;
+                treeNodes.map(function (treeNode) {
+                    if (treeNode.phrases[index].translation in firstPhraseGrouped) {
+                        firstPhraseGrouped[treeNode.phrases[index].translation] += treeNode.probability;
                     } else {
-                        firstPhraseGrouped[treeNode.phrases[0].translation] = treeNode.probability;
+                        firstPhraseGrouped[treeNode.phrases[index].translation] = treeNode.probability;
                     }
                 });
 
-                console.log("test: ");
-                console.log(test);
+                var tuples = [];
+                for (var key in firstPhraseGrouped) {
+                    tuples.push([key, firstPhraseGrouped[key]]);
+                }
 
-                console.log("grouped: ");
-                console.log(firstPhraseGrouped);
+                tuples.sort(function(a, b) {
+                    a = a[1];
+                    b = b[1];
+
+                    return a > b ? -1 : (a < b ? 1 : 0);
+                });
+
+                return tuples;
+
+                /*
+                for (var i = 0; i < tuples.length; i++) {
+                    var key = tuples[i][0];
+                    var value = tuples[i][1];
+
+                    // do something with key and value
+                }
+                */
+
+                /*
                 bySortedValue(firstPhraseGrouped, function(a, b) {
                     console.log(a + " " + b);
                 });
+                */
+            }
+
+            function buildTree(originalPhrase) {
+                var originalPhraseLength = originalPhrase.split(" ").length;
+                treeRoot = new TreeNode([], [], []);
+                for (var i = 0; i < originalPhraseLength; i++) {
+                    treeRoot.translated.push(false);
+                }
+                treeRoot.generateChildren(serverPhrases, 3);
+                currentNode = treeRoot;
+                currentNodeCharIndex = null;
+                lastCompletedNode = null;
+                expectSpace = false;
+
+                console.log("treeRoot: ");
+                console.log(treeRoot);
+
+                console.log("last step phrases: ");
+                console.log(treeRoot.getLastStepChildren());
+
+                console.log("grouped: ");
+                console.log(groupAndSortTreeNodesByPhraseTranslation(0, treeRoot.getLastStepChildren()));
             }
         });
     </script>
