@@ -14,6 +14,7 @@ class PhrasesManager {
     println("Phrases manager is being initialized!")
     val phrases : HashMap[String, ArrayBuffer[Phrase]] = new HashMap[String, ArrayBuffer[Phrase]]
 
+    //val file = "en-cs.phrase-table.1000.txt"
     val file = "en-cs.phrase-table.500000.txt"
     println("Loading file: " + file)
     try {

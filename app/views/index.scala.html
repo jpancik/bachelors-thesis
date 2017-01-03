@@ -13,8 +13,10 @@
         var currentNodeCharIndex = null;
         var lastCompletedNode = null;
         var expectSpace = false;
-
         var currentPhraseInput = "";
+
+        var originalPhrase = null;
+        var matchedPhrases = null;
 
         String.prototype.capitalizeFirstLetter = function() {
             return this.charAt(0).toUpperCase() + this.slice(1);
@@ -22,12 +24,12 @@
 
         $(document).ready(function() {
             $("#button-request-translation").click(function(e) {
-                var text = $inputTextToTranslate.val();
-                console.log("Translating: " + text);
+                originalPhrase = $inputTextToTranslate.val();
+                console.log("Translating: " + originalPhrase);
                 $("#input-translated").val("");
 
                 $.get("/suggestions", {
-                    sentence: text
+                    sentence: originalPhrase
                 }, function (data) {
                     console.log("Received from server:");
                     console.log(data);
@@ -41,7 +43,6 @@
 
                     serverPhrases = data;
                     refreshAutocomplete();
-                    buildTree(text, data);
                 });
 
                 e.preventDefault();
@@ -50,8 +51,41 @@
             function refreshAutocomplete() {
                 $("#table-autocomplete").empty();
                 $("#table-autocomplete").append(
-                        "<tr><th>Key</th><th>Word</th><th>Index</th></tr>"
+                        "<tr><th>Key</th><th>Word</th><th>Probability</th></tr>"
                 );
+
+                var grouped;
+                if (matchedPhrases != null) {
+                    var originalPhraseLength = originalPhrase.split(" ").length;
+                    treeRoot = new TreeNode(matchedPhrases, [], []);
+                    for (var i = 0; i < originalPhraseLength; i++) {
+                        treeRoot.translated.push(false);
+                    }
+                    for (var j = 0; j < matchedPhrases.length; j++) {
+                        for (var i = matchedPhrases[j].beginIndex; i <= matchedPhrases[j].endIndex; i++) {
+                            treeRoot.translated[i] = true;
+                        }
+                    }
+                }
+                buildTree();
+
+                var matchedPhrasesLength = matchedPhrases == null ? 0 : matchedPhrases.length;
+                grouped = groupAndSortTreeNodesByPhraseTranslation(Math.max(matchedPhrasesLength, 0), treeRoot.getLastStepChildren());
+
+                var words = $inputTranslated.val().split(" ");
+                var filter = words[words.length - 1];
+                console.log("Filter suggestions by: " + filter);
+                var filtered = grouped.filter(function (phrase) {
+                    return phrase[0].startsWith(filter);
+                });
+
+                var keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"];
+                for(var i = 0; i < keys.length && i < filtered.length; i++) {
+                    $("#table-autocomplete").append(
+                            "<tr><td>" + keys[i] + "</td><td>" + filtered[i][0] + "</td><td>" + filtered[i][1] + "</td></tr>"
+                    );
+                }
+
                 /*
                 autocompleteList = [];
 
@@ -95,6 +129,7 @@
                 $inputTranslated.keypress(function (event) {
                     var inChar = String.fromCharCode(event.which);
 
+                    /*
                     if (treeRoot != null) {
                         if (currentNodeCharIndex == null && !(expectSpace && inChar != " ")) {
                             if (inChar == " ") {
@@ -204,6 +239,8 @@
                             }
                         }
                     }
+                    */
+
                     /*
                     for (var i = 0; i < keys.length; i++) {
                         if (event.which == keys[i] && i < autocompleteList.length) {
@@ -231,6 +268,34 @@
                     refreshAutocomplete();
                 });
                 */
+
+                $("#input-translated").on("input", function (event) {
+                    matchedPhrases = [];
+
+                    var words = $inputTranslated.val().split(" ");
+                    for (var j = 0; j < words.length - 1; j++) {
+                        for (var end = words.length - 1; end > j; end--) {
+                            // from j to i try to match phrase
+
+                            var tryToMatch = words.slice(j, end).join(" ");
+                            //console.log("Trying from " + j + " to " + end + " to match: '" + tryToMatch + "'.");
+
+                            for (var k = 0; k < serverPhrases.length; k++) {
+                                if (serverPhrases[k].translation == tryToMatch) {
+                                    console.log("--Matched '" +  tryToMatch + "' with '" + serverPhrases[k].original + "' from server phrase.--");
+                                    matchedPhrases.push(serverPhrases[k]);
+                                    j += (end - j - 1);
+                                    i = words.length;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
+                    console.log("Result:");
+                    console.log(matchedPhrases);
+                    refreshAutocomplete();
+                });
             })();
 
             // Source: http://stackoverflow.com/questions/5199901/how-to-sort-an-associative-array-by-its-values-in-javascript
@@ -245,13 +310,15 @@
                 while (length--) callback.call(context, tuples[length][0], tuples[length][1]);
             }
 
-            var TreeNode = function (phrases, translated, children) {
-                this.phrases = phrases;
-                this.translated = translated;
-                this.children = children;
-                this.probability = 1.0;
+            class TreeNode {
+                constructor(phrases, translated, children) {
+                    this.phrases = phrases;
+                    this.translated = translated;
+                    this.children = children;
+                    this.probability = 1.0;
+                }
 
-                this.addPhrase = function(phrase) {
+                addPhrase(phrase) {
                     this.phrases.push(phrase);
                     for (var i = phrase.beginIndex; i <= phrase.endIndex; i++) {
                         this.translated[i] = true;
@@ -259,7 +326,7 @@
                     this.probability *= phrase.directProbability;
                 };
 
-                this.generateChildren = function(serverPhrases, iterations) {
+                generateChildren(serverPhrases, iterations) {
                     // Generate all next phrases for this node.
                     var newChildren = [];
                     for (var j = 0; j < serverPhrases.length; j++) {
@@ -276,14 +343,18 @@
                         }
 
                         var nextNode = new TreeNode(
-                                this.phrases.slice(),
-                                this.translated.slice(),
-                                this.children.slice()
+                                this.phrases.slice(0),
+                                this.translated.slice(0),
+                                []
                         );
 
                         nextNode.addPhrase(phrase);
 
                         newChildren.push(nextNode);
+
+                        if(newChildren.length >= 50) {
+                            break;
+                        }
                     }
                     this.children = newChildren;
 
@@ -291,7 +362,7 @@
                     this.children.sort(function (a, b) {
                         return b.probability - a.probability;
                     });
-                    this.children = this.children.slice(0, 100);
+                    this.children = this.children.slice(0, 50);
 
                     if (iterations - 1 > 0 || this.children.length == 0) {
                         // Generate next phrases for all new children.
@@ -301,7 +372,7 @@
                     }
                 };
 
-                this.getLastStepChildren = function() {
+                getLastStepChildren() {
                     if(this.children.length == 0) {
                         return [this];
                     } else {
@@ -316,7 +387,7 @@
                     }
                 };
 
-                this.getLastPhrase = function() {
+                getLastPhrase() {
                     if (this.phrases.length == 0) {
                         return null;
                     } else {
@@ -365,18 +436,31 @@
                 */
             }
 
-            function buildTree(originalPhrase) {
-                var originalPhraseLength = originalPhrase.split(" ").length;
-                treeRoot = new TreeNode([], [], []);
-                for (var i = 0; i < originalPhraseLength; i++) {
-                    treeRoot.translated.push(false);
+            function buildTree() {
+                var startTime = Date.now();
+
+                // Sort server phrases by probability.
+                serverPhrases.sort(function (a, b) {
+                    return b.directProbability - a.directProbability;
+                });
+
+                if (treeRoot == null) {
+                    var originalPhraseLength = originalPhrase.split(" ").length;
+                    treeRoot = new TreeNode([], [], []);
+                    for (var i = 0; i < originalPhraseLength; i++) {
+                        treeRoot.translated.push(false);
+                    }
+                    currentNode = treeRoot;
+                    currentNodeCharIndex = null;
+                    lastCompletedNode = null;
+                    expectSpace = false;
                 }
                 treeRoot.generateChildren(serverPhrases, 3);
-                currentNode = treeRoot;
-                currentNodeCharIndex = null;
-                lastCompletedNode = null;
-                expectSpace = false;
 
+                elapsedTime = Date.now() - startTime;
+                console.log("Build tree timing: " + elapsedTime);
+
+                /*
                 console.log("treeRoot: ");
                 console.log(treeRoot);
 
@@ -385,12 +469,13 @@
 
                 console.log("grouped: ");
                 console.log(groupAndSortTreeNodesByPhraseTranslation(0, treeRoot.getLastStepChildren()));
+                */
             }
         });
     </script>
 }
 
-@main("Dictionary Prototype", jsContent) {
+@main("Phrases Dictionary Prototype", jsContent) {
     <div class="container">
         <div class="row">
             <h3>1. Enter sentence you wish to translate:</h3>
@@ -429,7 +514,7 @@
                     <tr>
                         <th>Key</th>
                         <th>Word</th>
-                        <th>Index</th>
+                        <th>Probability</th>
                     </tr>
                 </table>
             </div>
