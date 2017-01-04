@@ -52,7 +52,7 @@
                 );
 
                 var grouped;
-                var prefixFilter = null;
+                var prefixWord = null;
                 if (matchedPhrases != null) {
                     var originalPhraseLength = originalPhrase.split(" ").length;
                     treeRoot = new TreeNode(matchedPhrases, [], []);
@@ -65,12 +65,18 @@
                         }
                     }
 
+                    /*
                     var words = $inputTranslated.val().split(" ");
-                    if(words.length > 0) {
-                        prefixFilter = words.slice(lastMatchedWord, words.length).join(" ");
+                    if(words.length > 0 && (words.length - 1 - lastMatchedWord) > 0) {
+                        prefixWords = words.slice(lastMatchedWord, words.length);
                     }
+                    */
                 }
-                buildTree(prefixFilter);
+                var words = $inputTranslated.val().split(" ");
+                if (words[words.length - 1].length > 0) {
+                    prefixWord = words[words.length - 1];
+                }
+                buildTree(prefixWord);
 
                 var matchedPhrasesLength = matchedPhrases == null ? 0 : matchedPhrases.length;
                 grouped = groupAndSortTreeNodesByPhraseTranslation(Math.max(matchedPhrasesLength, 0), treeRoot.getLastStepChildren());
@@ -339,7 +345,7 @@
                         }
                     }
 
-                    console.log("Result:");
+                    console.log("Result of matched phrases:");
                     console.log(matchedPhrases);
                     refreshAutocomplete();
                 });
@@ -373,16 +379,17 @@
                     this.probability *= phrase.directProbability;
                 };
 
-                generateChildren(serverPhrases, iterations, prefixFilter) {
+                generateChildren(serverPhrases, iterations, prefixWord) {
                     // Generate all next phrases for this node.
                     var phrases = serverPhrases;
-                    if (prefixFilter != null) {
+                    if (prefixWord != null) {
+                        /*
                         var filtered = serverPhrases.filter(function (phrase) {
-                            var start = Math.max(prefixFilter.length - phrase.translation.length, 0);
-                            for (; start < prefixFilter.length; start++) {
+                            var start = Math.max(prefixWords.length - phrase.translation.length, 0);
+                            for (; start < prefixWords.length; start++) {
                                 var ok = true;
-                                for (var i = start; i < prefixFilter.length; i++) {
-                                    if (phrase.translation[i - start] != prefixFilter[i]) {
+                                for (var i = start; i < prefixWords.length; i++) {
+                                    if (phrase.translation[i - start] != prefixWords[i]) {
                                         ok = false;
                                         break;
                                     }
@@ -392,9 +399,13 @@
                                 }
                             }
                         });
+                        */
+                        var filtered = serverPhrases.filter(function (phrase) {
+                            return phrase.translation.startsWith(prefixWord);
+                        });
 
                         if (filtered.length > 0) {
-                            console.log("Filtered phrases by prefix filter: " + prefixFilter + " with length: " + filtered.length);
+                            console.log("Filtered phrases by prefix filter: " + prefixWord + " with length: " + filtered.length);
                             console.log(filtered);
                             phrases = filtered;
                         }
@@ -508,7 +519,7 @@
                 */
             }
 
-            function buildTree(prefixFilter) {
+            function buildTree(prefixWord) {
                 var startTime = Date.now();
 
                 // Sort server phrases by probability.
@@ -523,7 +534,7 @@
                         treeRoot.translated.push(false);
                     }
                 }
-                treeRoot.generateChildren(serverPhrases, 2, prefixFilter);
+                treeRoot.generateChildren(serverPhrases, 2, prefixWord);
 
                 elapsedTime = Date.now() - startTime;
                 console.log("Build tree timing: " + elapsedTime);
