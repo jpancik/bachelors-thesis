@@ -9,14 +9,11 @@
         var $divRequestResult = $("#div-request-result");
 
         var treeRoot = null;
-        var currentNode = null;
-        var currentNodeCharIndex = null;
-        var lastCompletedNode = null;
-        var expectSpace = false;
-        var currentPhraseInput = "";
 
         var originalPhrase = null;
         var matchedPhrases = null;
+        var lastMatchedWord = 0;
+        var autocompleteList = [];
 
         String.prototype.capitalizeFirstLetter = function() {
             return this.charAt(0).toUpperCase() + this.slice(1);
@@ -55,6 +52,7 @@
                 );
 
                 var grouped;
+                var prefixFilter = null;
                 if (matchedPhrases != null) {
                     var originalPhraseLength = originalPhrase.split(" ").length;
                     treeRoot = new TreeNode(matchedPhrases, [], []);
@@ -66,21 +64,31 @@
                             treeRoot.translated[i] = true;
                         }
                     }
+
+                    var words = $inputTranslated.val().split(" ");
+                    if(words.length > 0) {
+                        prefixFilter = words.slice(lastMatchedWord, words.length).join(" ");
+                    }
                 }
-                buildTree();
+                buildTree(prefixFilter);
 
                 var matchedPhrasesLength = matchedPhrases == null ? 0 : matchedPhrases.length;
                 grouped = groupAndSortTreeNodesByPhraseTranslation(Math.max(matchedPhrasesLength, 0), treeRoot.getLastStepChildren());
 
+                /*
                 var words = $inputTranslated.val().split(" ");
                 var filter = words[words.length - 1];
                 console.log("Filter suggestions by: " + filter);
                 var filtered = grouped.filter(function (phrase) {
                     return phrase[0].startsWith(filter);
                 });
+                */
+                var filtered = grouped;
 
-                var keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"];
+                var keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
+                autocompleteList = [];
                 for(var i = 0; i < keys.length && i < filtered.length; i++) {
+                    autocompleteList.push(filtered[i][0]);
                     $("#table-autocomplete").append(
                             "<tr><td>" + keys[i] + "</td><td>" + filtered[i][0] + "</td><td>" + filtered[i][1] + "</td></tr>"
                     );
@@ -123,11 +131,46 @@
             }
 
             (function() {
-                // 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
-                //var keys = [49, 50, 51, 52, 53, 54, 55, 56, 57, 58];
-
+                // 1, 2, 3, 4, 5, 6, 7, 8, 9
+                var keys = [49, 50, 51, 52, 53, 54, 55, 56, 57];
                 $inputTranslated.keypress(function (event) {
                     var inChar = String.fromCharCode(event.which);
+
+                    for (var j = 0; j < keys.length; j++) {
+                        if (event.which == keys[j] && j < autocompleteList.length) {
+                            console.log("pressed key " + keys[j]);
+                            event.preventDefault();
+
+                            var translatedText = $inputTranslated.val();
+                            var autocompleteText = autocompleteList[j];
+
+                            var start = Math.max(translatedText.length - autocompleteText.length, 0);
+                            var index = 0;
+                            var indexSet = false;
+                            for (; start < translatedText.length; start++) {
+                                var ok = true;
+                                for (var i = start; i < translatedText.length; i++) {
+                                    if (autocompleteText[i - start] != translatedText[i]) {
+                                        ok = false;
+                                        break;
+                                    }
+                                }
+                                if (ok) {
+                                    index = start;
+                                    indexSet = true;
+                                    break;
+                                }
+                            }
+
+                            if (indexSet) {
+                                $inputTranslated.val(translatedText + autocompleteText.slice(translatedText.length - index, autocompleteText.length));
+                            } else {
+                                $inputTranslated.val(translatedText + autocompleteText);
+                            }
+
+                            refreshAutocomplete();
+                        }
+                    }
 
                     /*
                     if (treeRoot != null) {
@@ -271,6 +314,7 @@
 
                 $("#input-translated").on("input", function (event) {
                     matchedPhrases = [];
+                    lastMatchedWord = 0;
 
                     var words = $inputTranslated.val().split(" ");
                     for (var j = 0; j < words.length - 1; j++) {
@@ -284,6 +328,9 @@
                                 if (serverPhrases[k].translation == tryToMatch) {
                                     console.log("--Matched '" +  tryToMatch + "' with '" + serverPhrases[k].original + "' from server phrase.--");
                                     matchedPhrases.push(serverPhrases[k]);
+                                    if (lastMatchedWord < end) {
+                                        lastMatchedWord = end;
+                                    }
                                     j += (end - j - 1);
                                     i = words.length;
                                     break;
@@ -326,11 +373,36 @@
                     this.probability *= phrase.directProbability;
                 };
 
-                generateChildren(serverPhrases, iterations) {
+                generateChildren(serverPhrases, iterations, prefixFilter) {
                     // Generate all next phrases for this node.
+                    var phrases = serverPhrases;
+                    if (prefixFilter != null) {
+                        var filtered = serverPhrases.filter(function (phrase) {
+                            var start = Math.max(prefixFilter.length - phrase.translation.length, 0);
+                            for (; start < prefixFilter.length; start++) {
+                                var ok = true;
+                                for (var i = start; i < prefixFilter.length; i++) {
+                                    if (phrase.translation[i - start] != prefixFilter[i]) {
+                                        ok = false;
+                                        break;
+                                    }
+                                }
+                                if (ok) {
+                                    return true;
+                                }
+                            }
+                        });
+
+                        if (filtered.length > 0) {
+                            console.log("Filtered phrases by prefix filter: " + prefixFilter + " with length: " + filtered.length);
+                            console.log(filtered);
+                            phrases = filtered;
+                        }
+                    }
+
                     var newChildren = [];
-                    for (var j = 0; j < serverPhrases.length; j++) {
-                        var phrase = serverPhrases[j];
+                    for (var j = 0; j < phrases.length; j++) {
+                        var phrase = phrases[j];
                         var ok = true;
                         for (var i = phrase.beginIndex; i <= phrase.endIndex; i++) {
                             if(this.translated[i] == true) {
@@ -367,7 +439,7 @@
                     if (iterations - 1 > 0 || this.children.length == 0) {
                         // Generate next phrases for all new children.
                         for (var j = 0; j < this.children.length; j++) {
-                            this.children[j].generateChildren(serverPhrases, iterations - 1);
+                            this.children[j].generateChildren(serverPhrases, iterations - 1, null);
                         }
                     }
                 };
@@ -436,7 +508,7 @@
                 */
             }
 
-            function buildTree() {
+            function buildTree(prefixFilter) {
                 var startTime = Date.now();
 
                 // Sort server phrases by probability.
@@ -450,12 +522,8 @@
                     for (var i = 0; i < originalPhraseLength; i++) {
                         treeRoot.translated.push(false);
                     }
-                    currentNode = treeRoot;
-                    currentNodeCharIndex = null;
-                    lastCompletedNode = null;
-                    expectSpace = false;
                 }
-                treeRoot.generateChildren(serverPhrases, 3);
+                treeRoot.generateChildren(serverPhrases, 2, prefixFilter);
 
                 elapsedTime = Date.now() - startTime;
                 console.log("Build tree timing: " + elapsedTime);
