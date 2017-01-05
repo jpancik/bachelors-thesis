@@ -323,8 +323,9 @@
                     lastMatchedWord = 0;
 
                     var words = $inputTranslated.val().split(" ");
-                    for (var j = 0; j < words.length - 1; j++) {
-                        for (var end = words.length - 1; end > j; end--) {
+                    // Try each word except last to match as phrase.
+                    for (var j = 0; j < words.length - 2; j++) {
+                        for (var end = words.length - 2; end > j; end--) {
                             // from j to i try to match phrase
 
                             var tryToMatch = words.slice(j, end).join(" ");
@@ -551,6 +552,15 @@
                 */
             }
         });
+
+        (function() {
+            $(".suggestion").click(function(event) {
+                event.preventDefault();
+
+                var text = $(this).text();
+                $("#input-text-to-translate").val(text);
+            });
+        })();
     </script>
 }
 
@@ -560,6 +570,15 @@
             <h3>1. Enter sentence you wish to translate:</h3>
             <div class="col-md-12">
                 <input type="text" class="form-control" id="input-text-to-translate" value="convention on the elimination of double taxation">
+            </div>
+        </div>
+        <div class="row" style="padding-top: 20px;">
+            <div class="col-md-12">
+                <p>You can try:</p>
+                <p><a href="#" class="suggestion">There are many different kinds of aircraft.</a><br />existuje mnoho různých druhů letadel</p>
+                <p><a href="#" class="suggestion">Buying and running a car needs a lot of money, even more for a good quality one that is not too old.</a><br />koupit a starat se o automobil vyžaduje velké množství peněz a ještě více pro auto dobré kvality, které není tak staré</p>
+                <p><a href="#" class="suggestion">Traffic congestion and accidents can be dangerous to other road users.</a><br />dopravní zácpy a nehody mohou být nebezpečné pro ostatní uživatelé cest</p>
+                <p><a href="#" class="suggestion">Most of the countries on one side were allied in NATO whose most powerful country was the United States.</a><br />většina států na jedné straně byly spojené v NATO, kde nejsilnější zemí byly Spojené Státy Americké</p>
             </div>
         </div>
 

@@ -17,6 +17,7 @@ class PhrasesManager {
     //val file = "en-cs.phrase-table.1000.txt"
     //val file = "en-cs.phrase-table.500000.txt"
     val file = "moses.phrase-table.1.txt"
+
     println("Loading file: " + file)
     try {
         val matchingRegex = """^([^\t|]+) \|\|\| ([^\t|]+) \|\|\| [^ ]+ [^ ]+ ([^ ]+) ([^ ]+) .*$""".r
