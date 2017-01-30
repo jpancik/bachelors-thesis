@@ -1,6 +1,6 @@
 --- Create table for suggestions.
 
-CREATE TABLE "phrases" ("original" TEXT,"translation" TEXT,"directProbability" TEXT, "lexticalWeighting" TEXT);
+CREATE TABLE "phrases" ("original" TEXT,"translation" TEXT,"directProbability" TEXT, "lexicalWeighting" TEXT);
 
 --- Copy data.
 

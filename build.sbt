@@ -11,7 +11,9 @@ libraryDependencies ++= Seq(
     cache,
     ws,
     specs2 % Test,
-    "org.apache.commons" % "commons-lang3" % "3.5"
+    "org.apache.commons" % "commons-lang3" % "3.5",
+    "com.typesafe.play" %% "play-slick" % "2.0.2",
+    "org.postgresql" % "postgresql" % "9.4-1201-jdbc41"
 )
 
 unmanagedResourceDirectories in Test <+=  baseDirectory ( _ /"target/web/public/test" )  
