@@ -1,0 +1,286 @@
+@(testDataPath: String, testDataFileJson: String)
+
+@jsContent = {
+<script src="@routes.Assets.at("javascripts/autocomplete.js")"></script>
+<script>
+    var testData = JSON.parse('@Html(testDataFileJson)');
+
+    var $inputTimeDelay = $("#input-time-delay");
+    var $inputAutocompleteItems = $("#input-autocomplete-items");
+    var $buttonStart = $("#button-start");
+
+    var $overallNoAutocomplete = $("#overall-no-autocomplete");
+    var $overallWithAutocomplete = $("#overall-with-autocomplete");
+    var $overallEffectivity = $("#overall-effectivity");
+    var $overallProgress = $("#overall-progress");
+
+    var $currentSentenceText = $("#current-sentence-text");
+    var $currentSentenceStatus = $("#current-sentence-status");
+    var $translatedSentenceText = $("#translated-sentence-text");
+    var $translatedSentenceStatus = $("#translated-sentence-status");
+
+    var delay = 100;
+    var autocompleteListItems = 10;
+
+    var autocompletor;
+    var autocompleteRefreshed = false;
+    var autocompleteLength = 0;
+    var sentenceIndex = 0;
+    var sentenceHits = 0;
+    var totalHits = 0;
+
+    $(document).ready(function() {
+        $buttonStart.click(function(event) {
+            event.preventDefault();
+
+            delay = parseInt($inputTimeDelay.val());
+            autocompleteListItems = parseInt($inputAutocompleteItems.val());
+
+            startSimulation();
+        });
+    });
+
+    function startSimulation() {
+        var originalPhrase = testData[sentenceIndex].original;
+        console.log("Translating: " + originalPhrase);
+        $currentSentenceText.val(originalPhrase);
+        $currentSentenceStatus.text("Retrieving phrases form server.");
+
+        $.get("/suggestions", {
+            sentence: originalPhrase
+        }, function (data) {
+            $currentSentenceStatus.text("Retrieved form server " + data.length + " phrases.");
+
+            setTimeout(function() {
+                $currentSentenceStatus.text("Hits without autocomplete: " + originalPhrase.length);
+                autocompletor = new Autocompletor(originalPhrase, data, autocompleteListItems, function(list) {
+                    $("#table-autocomplete").empty();
+                    $("#table-autocomplete").append(
+                            "<tr><th>Index</th><th>Word</th></tr>"
+                    );
+
+                    for(var i = 0; i < autocompleteListItems && i < list.length; i++) {
+                        $("#table-autocomplete").append(
+                                "<tr><td>" + i + "</td><td>" + list[i] + "</td></tr>"
+                        );
+                    }
+
+                    autocompleteLength = list.length;
+                    autocompleteRefreshed = true;
+                });
+
+                step();
+            }, delay);
+        });
+    }
+
+    function step() {
+        if (autocompleteRefreshed) {
+            autocompleteRefreshed = false;
+
+            var targetSentence = testData[sentenceIndex].translated;
+            var translated = $translatedSentenceText.val();
+            if (targetSentence.length == translated.length) {
+                // Sentence completed.
+                setTimeout(nextSentence(), delay);
+                return;
+            }
+
+            var uppercases = [];
+            for (var i = 0; i < translated.length; i++) {
+                uppercases.push(translated[i] == translated[i].toUpperCase());
+            }
+
+            var found = false;
+            var index = 0;
+            var amountMax = 0;
+            for (var i = 0; i < autocompleteLength; i++) {
+                var completed = autocompletor.autocomplete(translated, i, false);
+                for (var j = 0; j < uppercases.length; j++) {
+                    if(uppercases[j]) {
+                        completed = completed.slice(0, j) + completed[j].toUpperCase() + completed.slice(j + 1, completed.length);
+                    }
+                }
+
+                if(targetSentence.startsWith(completed)) {
+                    var amountCompleted = completed.length - translated.length;
+                    if (amountCompleted > 0) {
+                        found = true;
+                        if (amountCompleted > amountMax) {
+                            index = i;
+                            amountMax = amountCompleted;
+                        }
+                    }
+                }
+            }
+
+            if (found) {
+                var autocompleted = autocompletor.autocomplete(translated, index);
+                for (var j = 0; j < uppercases.length; j++) {
+                    if(uppercases[j]) {
+                        autocompleted = autocompleted.slice(0, j) + autocompleted[j].toUpperCase() + autocompleted.slice(j + 1, autocompleted.length);
+                    }
+                }
+                $translatedSentenceText.val(autocompleted);
+            } else {
+                var nextChar = targetSentence[translated.length];
+                $translatedSentenceText.val(translated + nextChar);
+            }
+            updateStatistics(1);
+            $translatedSentenceStatus.text("Hits with autocomplete: " + sentenceHits);
+            autocompletor.updateMatchedPhrases($translatedSentenceText.val());
+        }
+        setTimeout(step, delay);
+    }
+
+    function nextSentence() {
+        sentenceIndex += 1;
+        sentenceHits = 0;
+        $translatedSentenceText.val("");
+        $translatedSentenceStatus.text("Hits with autocomplete: 0");
+        startSimulation();
+    }
+
+    function updateStatistics(deltaHits) {
+        sentenceHits += 1;
+        totalHits += 1;
+    }
+</script>
+}
+
+@main("Autocompletor | Test", jsContent) {
+    <div class="container">
+        <div class="row text-center">
+            <h1>Test the performance of the autocomplete system</h1>
+        </div>
+        <br />
+        <div class="row">
+            <div class="col-md-3">
+                <h4>File used for testing:</h4>
+            </div>
+            <div class="col-md-4">
+                <h4><a href="@routes.Assets.at(testDataPath)" target="_blank">@routes.Assets.at(testDataPath)</a></h4>
+            </div>
+        </div>
+        <br />
+        <div class="row">
+            <div class="col-md-3">
+                <h4>Time delay for step:</h4>
+            </div>
+            <div class="col-md-3">
+                <div class="input-group">
+                    <input type="number" class="form-control" value="1000" placeholder="1000" aria-describedby="basic-addon2" id="input-time-delay">
+                    <span class="input-group-addon">millis</span>
+                </div>
+            </div>
+        </div>
+        <br />
+        <div class="row">
+            <div class="col-md-3">
+                <h4>Autocomplete list:</h4>
+            </div>
+            <div class="col-md-3">
+                <div class="input-group">
+                    <input type="number" class="form-control" value="10" placeholder="10" aria-describedby="basic-addon2" id="input-autocomplete-items">
+                    <span class="input-group-addon" >items</span>
+                </div>
+            </div>
+        </div>
+        <br />
+        <div class="row">
+            <div class="col-md-3">
+                <h4>Launch the test:</h4>
+            </div>
+            <div class="col-md-3">
+                <button type="button" class="btn btn-lg btn-success" id="button-start">Start</button>
+            </div>
+        </div>
+
+        <hr />
+
+        <div class="row">
+            <div class="col-md-12">
+                <h3>Test results:</h3>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-2">
+                <h5>Overall statistics</h5>
+            </div>
+            <div class="col-md-3">
+                <h5>No autocomplete keyboard hits:</h5>
+            </div>
+            <div class="col-md-4">
+                <h5 id="overall-no-autocomplete">12345</h5>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-3 col-md-offset-2">
+                <h5>With autocomplete keyboard hits:</h5>
+            </div>
+            <div class="col-md-4">
+                <h5 id="overall-with-autocomplete">11345</h5>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-3 col-md-offset-2">
+                <h5>Effectivity:</h5>
+            </div>
+            <div class="col-md-4">
+                <h5 id="overall-effectivity">95.7584%</h5>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-3 col-md-offset-2">
+                <h5>Sentence:</h5>
+            </div>
+            <div class="col-md-4">
+                <h5 id="overall-progress">2/55</h5>
+            </div>
+        </div>
+
+        <br />
+
+        <div class="row">
+            <div class="col-md-6">
+                <h5>Current sentence being tested:</h5>
+            </div>
+            <div class="col-md-6">
+                <h5 id="current-sentence-status">Hits without autocomplete: 123123</h5>
+            </div>
+
+        </div>
+        <div class="row">
+            <div class="col-md-12">
+                <input type="text" disabled="" class="form-control" id="current-sentence-text" value="">
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                <h5>Progress of autocompletion:</h5>
+            </div>
+            <div class="col-md-6">
+                <h5 id="translated-sentence-status">Hits with autocomplete: 1231</h5>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-12">
+                <input type="text" disabled="" class="form-control" id="translated-sentence-text" value="">
+            </div>
+        </div>
+
+        <div class="row">
+            <br />
+            <div class="col-md-6">
+                <table class="table table-bordered table-hover" id="table-autocomplete">
+                    <tr>
+                        <th>Index</th>
+                        <th>Word</th>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div><!-- /.container -->
+}

@@ -249,7 +249,7 @@ class Autocompletor {
         this.autocompleteCallback(this.autocompleteList);
     }
 
-    autocomplete(input, autocompleteIndex) {
+    autocomplete(input, autocompleteIndex, update) {
         var translatedText = tokenize(input);
         var autocompleteText = this.autocompleteList[autocompleteIndex];
 
@@ -278,7 +278,9 @@ class Autocompletor {
             out = translatedText + autocompleteText;
         }
 
-        this.updateMatchedPhrases(out);
+        if(typeof yourvar != 'undefined' && update) {
+            this.updateMatchedPhrases(out);
+        }
         return detokenize(out);
     }
 
