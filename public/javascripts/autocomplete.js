@@ -40,8 +40,8 @@ class TreeNode {
             });
 
             if (filtered.length > 0) {
-                console.log("Filtered phrases by prefix filter: " + prefixWord + " with length: " + filtered.length);
-                console.log(filtered);
+                // console.log("Filtered phrases by prefix filter: " + prefixWord + " with length: " + filtered.length);
+                // console.log(filtered);
                 phrases = filtered;
             }
         }
@@ -133,7 +133,7 @@ function buildTree(phrases, treeRoot, prefixWord) {
     out.generateChildren(phrases, 2, prefixWord);
 
     var elapsedTime = Date.now() - startTime;
-    console.log("Build tree timing: " + elapsedTime);
+    // console.log("Build tree timing: " + elapsedTime);
 
     return out;
 }
@@ -199,7 +199,7 @@ class Autocompletor {
 
                 for (var k = 0; k < this.phrases.length; k++) {
                     if (this.phrases[k].translation == tryToMatch) {
-                        console.log("--Matched '" +  tryToMatch + "' with '" + this.phrases[k].original + "' from server phrase.--");
+                        // console.log("--Matched '" +  tryToMatch + "' with '" + this.phrases[k].original + "' from server phrase.--");
                         this.matchedPhrases.push(this.phrases[k]);
                         if (this.lastMatchedWord < end) {
                             this.lastMatchedWord = end;
@@ -212,8 +212,8 @@ class Autocompletor {
             }
         }
 
-        console.log("Result of matched phrases:");
-        console.log(this.matchedPhrases);
+        // console.log("Result of matched phrases:");
+        // console.log(this.matchedPhrases);
         this.refresh(translatedText);
     }
 

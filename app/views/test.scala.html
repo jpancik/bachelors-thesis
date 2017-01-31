@@ -27,7 +27,8 @@
     var autocompleteLength = 0;
     var sentenceIndex = 0;
     var sentenceHits = 0;
-    var totalHits = 0;
+    var totalAutocompleteHits = 0;
+    var totalWithoutHits = 0;
 
     $(document).ready(function() {
         $buttonStart.click(function(event) {
@@ -38,6 +39,8 @@
 
             startSimulation();
         });
+
+        updateStatistics(0);
     });
 
     function startSimulation() {
@@ -52,7 +55,10 @@
             $currentSentenceStatus.text("Retrieved form server " + data.length + " phrases.");
 
             setTimeout(function() {
-                $currentSentenceStatus.text("Hits without autocomplete: " + originalPhrase.length);
+                totalWithoutHits += originalPhrase.length;
+                updateStatistics(0);
+
+                $currentSentenceStatus.text("Retrieved form server " + data.length + " phrases. Hits without autocomplete: " + originalPhrase.length);
                 autocompletor = new Autocompletor(originalPhrase, data, autocompleteListItems, function(list) {
                     $("#table-autocomplete").empty();
                     $("#table-autocomplete").append(
@@ -135,15 +141,34 @@
 
     function nextSentence() {
         sentenceIndex += 1;
-        sentenceHits = 0;
-        $translatedSentenceText.val("");
-        $translatedSentenceStatus.text("Hits with autocomplete: 0");
-        startSimulation();
+        if (sentenceIndex < testData.length) {
+            sentenceHits = 0;
+            $translatedSentenceText.val("");
+            $translatedSentenceStatus.text("Hits with autocomplete: 0");
+            startSimulation();
+        } else {
+            updateStatistics(0);
+            $overallProgress.text(sentenceIndex + "/" + testData.length + "; finished!");
+        }
     }
 
     function updateStatistics(deltaHits) {
-        sentenceHits += 1;
-        totalHits += 1;
+        sentenceHits += deltaHits;
+        totalAutocompleteHits += deltaHits;
+
+
+        var effectivity;
+        if(totalWithoutHits > 0) {
+            effectivity = (1.0 - totalAutocompleteHits/totalWithoutHits) * 100.0;
+            effectivity = effectivity.toFixed(2);
+        } else {
+            effectivity = 0;
+        }
+
+        $overallNoAutocomplete.text(totalWithoutHits);
+        $overallWithAutocomplete.text(totalAutocompleteHits);
+        $overallEffectivity.text(effectivity + "% less strokes");
+        $overallProgress.text((sentenceIndex + 1) + "/" + testData.length);
     }
 </script>
 }
@@ -169,7 +194,7 @@
             </div>
             <div class="col-md-3">
                 <div class="input-group">
-                    <input type="number" class="form-control" value="1000" placeholder="1000" aria-describedby="basic-addon2" id="input-time-delay">
+                    <input type="number" class="form-control" value="100" placeholder="100" aria-describedby="basic-addon2" id="input-time-delay">
                     <span class="input-group-addon">millis</span>
                 </div>
             </div>
@@ -209,7 +234,7 @@
                 <h5>Overall statistics</h5>
             </div>
             <div class="col-md-3">
-                <h5>No autocomplete keyboard hits:</h5>
+                <h5>No autocomplete keyboard strokes:</h5>
             </div>
             <div class="col-md-4">
                 <h5 id="overall-no-autocomplete">12345</h5>
@@ -217,7 +242,7 @@
         </div>
         <div class="row">
             <div class="col-md-3 col-md-offset-2">
-                <h5>With autocomplete keyboard hits:</h5>
+                <h5>With autocomplete keyboard strokes:</h5>
             </div>
             <div class="col-md-4">
                 <h5 id="overall-with-autocomplete">11345</h5>
@@ -247,7 +272,7 @@
                 <h5>Current sentence being tested:</h5>
             </div>
             <div class="col-md-6">
-                <h5 id="current-sentence-status">Hits without autocomplete: 123123</h5>
+                <h5 id="current-sentence-status"></h5>
             </div>
 
         </div>
@@ -262,7 +287,7 @@
                 <h5>Progress of autocompletion:</h5>
             </div>
             <div class="col-md-6">
-                <h5 id="translated-sentence-status">Hits with autocomplete: 1231</h5>
+                <h5 id="translated-sentence-status"></h5>
             </div>
         </div>
         <div class="row">
