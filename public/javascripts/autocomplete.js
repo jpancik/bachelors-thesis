@@ -141,10 +141,12 @@ function buildTree(phrases, treeRoot, prefixWord) {
 function groupAndSortTreeNodesByPhraseTranslation(index, treeNodes) {
     var firstPhraseGrouped = {};
     treeNodes.map(function (treeNode) {
-        if (treeNode.phrases[index].translation in firstPhraseGrouped) {
-            firstPhraseGrouped[treeNode.phrases[index].translation] += treeNode.probability;
-        } else {
-            firstPhraseGrouped[treeNode.phrases[index].translation] = treeNode.probability;
+        if (index < treeNode.phrases.length) {
+            if (treeNode.phrases[index].translation in firstPhraseGrouped) {
+                firstPhraseGrouped[treeNode.phrases[index].translation] += treeNode.probability;
+            } else {
+                firstPhraseGrouped[treeNode.phrases[index].translation] = treeNode.probability;
+            }
         }
     });
 
@@ -163,6 +165,10 @@ function groupAndSortTreeNodesByPhraseTranslation(index, treeNodes) {
     return tuples;
 }
 
+String.prototype.capitalizeFirstLetter = function() {
+    return this.charAt(0).toUpperCase() + this.slice(1);
+};
+
 class Autocompletor {
     constructor(originalPhrase, phrases, autocompleteSize, autocompleteCallback) {
         this.originalPhrase = originalPhrase;
@@ -178,10 +184,11 @@ class Autocompletor {
     }
 
     updateMatchedPhrases(input) {
+        var translatedText = tokenize(input);
         this.matchedPhrases = [];
         this.lastMatchedWord = 0;
 
-        var words = input.split(" ");
+        var words = translatedText.split(" ");
         // Try each word except last to match as phrase.
         for (var j = 0; j < words.length - 2; j++) {
             for (var end = words.length - 2; end > j; end--) {
@@ -207,7 +214,7 @@ class Autocompletor {
 
         console.log("Result of matched phrases:");
         console.log(this.matchedPhrases);
-        this.refresh(input);
+        this.refresh(translatedText);
     }
 
     refresh(input) {
@@ -235,13 +242,15 @@ class Autocompletor {
 
         this.autocompleteList = [];
         for(var i = 0; i < this.autocompleteSize && i < filtered.length; i++) {
-            this.autocompleteList.push(filtered[i][0]);
+            var string = detokenize(filtered[i][0]);
+
+            this.autocompleteList.push(string);
         }
         this.autocompleteCallback(this.autocompleteList);
     }
 
     autocomplete(input, autocompleteIndex) {
-        var translatedText = input;
+        var translatedText = tokenize(input);
         var autocompleteText = this.autocompleteList[autocompleteIndex];
 
         var start = Math.max(translatedText.length - autocompleteText.length, 0);
@@ -269,11 +278,42 @@ class Autocompletor {
             out = translatedText + autocompleteText;
         }
 
-        this.refresh(out);
-        return out;
+        this.updateMatchedPhrases(out);
+        return detokenize(out);
     }
 
     getAutocompleteListLength() {
         return this.autocompleteList.length;
     }
+}
+
+function tokenize(string) {
+    var out = string.toLowerCase();
+    var separators = [".", ",", "!", "?", ":", ";", "\"", "\'"];
+    for (var i = 0; i < separators.length; i++) {
+        out = out.replace(new RegExp("\\" + separators[i], "g"), " " + separators[i] + " ");
+    }
+    return out.replace(/\s\s+/g, ' ');
+}
+
+function detokenize(string) {
+    detokenize(string, true);
+}
+
+function detokenize(string, capitalize) {
+    var out = string.trim();
+
+    out = out.replace(/[ ]*("|')[ ]*/g, "$1");
+    out = out.replace(/([^" ])"([^"]*)"([^" ])/g, "$1 \"$2\" $3");
+    out = out.replace(/([^' ])'([^']*)'([^' ])/g, "$1 \'$2\' $3");
+
+    out = out.replace(/[ ]*(\.|\!|\?|\;|\,|\:)/g, "$1");
+
+    if (capitalize) {
+        out = out.replace(/([ ]*)([^.!?])([^.!?]*[.!?])/g, function (match, g1, g2, g3) {
+            return g1 + g2.toUpperCase() + g3;
+        });
+    }
+
+    return out;
 }

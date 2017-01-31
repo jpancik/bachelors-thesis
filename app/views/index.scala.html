@@ -8,10 +8,6 @@
         var $divRequestResult = $("#div-request-result");
         var autocompletor;
 
-        String.prototype.capitalizeFirstLetter = function() {
-            return this.charAt(0).toUpperCase() + this.slice(1);
-        };
-
         $(document).ready(function() {
             $("#button-request-translation").click(function(e) {
                 var originalPhrase = $inputTextToTranslate.val();
@@ -34,7 +30,7 @@
                     autocompletor = new Autocompletor(originalPhrase, data, 9, function(list) {
                         $("#table-autocomplete").empty();
                         $("#table-autocomplete").append(
-                                "<tr><th>Key</th><th>Word</th><th>Probability</th></tr>"
+                                "<tr><th>Key</th><th>Word</th></tr>"
                         );
 
                         var keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
@@ -60,7 +56,19 @@
                             console.log("pressed key " + keys[j]);
                             event.preventDefault();
 
-                            $inputTranslated.val(autocompletor.autocomplete($inputTranslated.val(), j));
+                            var currentInput = $inputTranslated.val();
+                            var uppercases = [];
+                            for (var i = 0; i < currentInput.length; i++) {
+                                uppercases.push(currentInput[i] == currentInput[i].toUpperCase());
+                            }
+                            var autocompleted = autocompletor.autocomplete(currentInput, j);
+                            for (var i = 0; i < uppercases.length; i++) {
+                                if(uppercases[i]) {
+                                    autocompleted = autocompleted.slice(0, i) + autocompleted[i].toUpperCase() + autocompleted.slice(i + 1, autocompleted.length);
+                                }
+                            }
+
+                            $inputTranslated.val(autocompleted);
                         }
                     }
                 });
@@ -130,7 +138,6 @@
                     <tr>
                         <th>Key</th>
                         <th>Word</th>
-                        <th>Probability</th>
                     </tr>
                 </table>
             </div>
