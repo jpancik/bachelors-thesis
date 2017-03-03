@@ -1,0 +1,144 @@
+@jsContent = {
+    <script src="@routes.Assets.at("javascripts/autocomplete.js")"></script>
+    <script>
+        var $inputTextToTranslate = $("#input-text-to-translate");
+        var $inputTranslated = $("#input-translated");
+        var $divRequestResult = $("#div-request-result");
+        var autocompletor;
+
+        $(document).ready(function() {
+            $("#button-request-translation").click(function(e) {
+                var originalPhrase = $inputTextToTranslate.val();
+                console.log("Translating: " + originalPhrase);
+                $("#input-translated").val("");
+
+                $.get("/suggestions", {
+                    sentence: originalPhrase
+                }, function (data) {
+                    console.log("Received from server:");
+                    console.log(data);
+
+                    $divRequestResult.empty();
+                    $divRequestResult.append(
+                            "<p>" +
+                            "Received " + data.length + " suggestions." +
+                            "</p>"
+                    );
+
+                    autocompletor = new Autocompletor(originalPhrase, data, 9, function(list) {
+                        $("#table-autocomplete").empty();
+                        $("#table-autocomplete").append(
+                                "<tr><th>Key</th><th>Word</th></tr>"
+                        );
+
+                        var keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
+                        for(var i = 0; i < keys.length && i < list.length; i++) {
+                            $("#table-autocomplete").append(
+                                    "<tr><td>" + keys[i] + "</td><td>" + list[i] + "</td></tr>"
+                            );
+                        }
+                    });
+                });
+
+                e.preventDefault();
+            });
+
+            (function() {
+                // 1, 2, 3, 4, 5, 6, 7, 8, 9
+                var keys = [49, 50, 51, 52, 53, 54, 55, 56, 57];
+                $inputTranslated.keypress(function (event) {
+                    var inChar = String.fromCharCode(event.which);
+
+                    for (var j = 0; j < keys.length; j++) {
+                        if (event.which == keys[j] && j < autocompletor.getAutocompleteListLength()) {
+                            console.log("pressed key " + keys[j]);
+                            event.preventDefault();
+
+                            var currentInput = $inputTranslated.val();
+                            var uppercases = [];
+                            for (var i = 0; i < currentInput.length; i++) {
+                                uppercases.push(currentInput[i] == currentInput[i].toUpperCase());
+                            }
+                            var autocompleted = autocompletor.autocomplete(currentInput, j);
+                            for (var i = 0; i < uppercases.length; i++) {
+                                if(uppercases[i]) {
+                                    autocompleted = autocompleted.slice(0, i) + autocompleted[i].toUpperCase() + autocompleted.slice(i + 1, autocompleted.length);
+                                }
+                            }
+
+                            $inputTranslated.val(autocompleted);
+                        }
+                    }
+                });
+
+                $("#input-translated").on("input", function (event) {
+                    autocompletor.updateMatchedPhrases($inputTranslated.val());
+                });
+            })();
+        });
+
+        (function() {
+            $(".suggestion").click(function(event) {
+                event.preventDefault();
+
+                var text = $(this).text();
+                $("#input-text-to-translate").val(text);
+            });
+        })();
+    </script>
+}
+
+@main("Autocompletor | Translating", jsContent) {
+    <div class="container">
+        <div class="row">
+            <h3>1. Enter sentence you wish to translate:</h3>
+            <div class="col-md-12">
+                <input type="text" class="form-control" id="input-text-to-translate" value="convention on the elimination of double taxation">
+            </div>
+        </div>
+        <div class="row" style="padding-top: 20px;">
+            <div class="col-md-12">
+                <p>You can try:</p>
+                <p><a href="#" class="suggestion">There are many different kinds of aircraft.</a><br />existuje mnoho různých druhů letadel</p>
+                <p><a href="#" class="suggestion">Buying and running a car needs a lot of money, even more for a good quality one that is not too old.</a><br />koupit a starat se o automobil vyžaduje velké množství peněz a ještě více pro auto dobré kvality, které není tak staré</p>
+                <p><a href="#" class="suggestion">Traffic congestion and accidents can be dangerous to other road users.</a><br />dopravní zácpy a nehody mohou být nebezpečné pro ostatní uživatelé cest</p>
+                <p><a href="#" class="suggestion">Most of the countries on one side were allied in NATO whose most powerful country was the United States.</a><br />většina států na jedné straně byly spojené v NATO, kde nejsilnější zemí byly Spojené Státy Americké</p>
+            </div>
+        </div>
+
+        <div class="row">
+            <h3>2. Request suggestions for the sentence from server.</h3>
+            <div class="col-md-12">
+                <div class="row">
+                    <div class="col-md-12">
+                        <button type="button" class="btn btn-lg btn-success" id="button-request-translation">Request</button>
+                    </div>
+                </div>
+                <div class="row" style="padding-top: 20px;">
+                    <div class="col-md-12" id="div-request-result">
+                        <p>Nothing requested.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <h3>3. Start translating</h3>
+            <div class="col-md-12">
+                <input type="text" class="form-control" id="input-translated">
+            </div>
+        </div>
+
+        <div class="row">
+            <br />
+            <div class="col-md-6">
+                <table class="table table-bordered table-hover" id="table-autocomplete">
+                    <tr>
+                        <th>Key</th>
+                        <th>Word</th>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div><!-- /.container -->
+}

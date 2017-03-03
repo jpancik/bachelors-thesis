@@ -1,0 +1,29 @@
+@main("Autocompletor | Lines to translate") {
+    <div class="container">
+        <div class="row">
+            <div class="col-md-12">
+                <h4>Enter plain text you wish to start translating:</h4>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-12">
+                @helper.form(action = routes.Application.parseLines()) {
+                    <div class="form-group">
+                        <div class="row">
+                            <div class="col-md-12">
+                                <textarea name="text" class="form-control" rows="12">There are many different kinds of aircraft. Traffic congestion and accidents can be dangerous to other road users.</textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <div class="row">
+                            <div class="col-md-offset-11 col-md-1">
+                                <button type="submit" class="btn btn-success">Submit</button>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div><!-- /.container -->
+}

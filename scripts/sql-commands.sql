@@ -4,7 +4,7 @@ CREATE TABLE "phrases" ("original" TEXT,"translation" TEXT,"directProbability" T
 
 --- Copy data.
 
-COPY phrases FROM '/Users/JurajPancik/School/bakalarka/project/data/dbdata.1.csv' delimiter ',' CSV;
+COPY phrases FROM '/Users/jurajpancik/School/bakalarka/project/data/dbdata.1.csv' delimiter ',' CSV;
 
 --- Create index.
 

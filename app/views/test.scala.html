@@ -45,6 +45,7 @@
 
     function startSimulation() {
         var originalPhrase = testData[sentenceIndex].original;
+        var targetSentence = testData[sentenceIndex].translated;
         console.log("Translating: " + originalPhrase);
         $currentSentenceText.val(originalPhrase);
         $currentSentenceStatus.text("Retrieving phrases form server.");
@@ -55,10 +56,10 @@
             $currentSentenceStatus.text("Retrieved form server " + data.length + " phrases.");
 
             setTimeout(function() {
-                totalWithoutHits += originalPhrase.length;
+                totalWithoutHits += targetSentence.length;
                 updateStatistics(0);
 
-                $currentSentenceStatus.text("Retrieved form server " + data.length + " phrases. Hits without autocomplete: " + originalPhrase.length);
+                $currentSentenceStatus.text("Retrieved form server " + data.length + " phrases. Hits without autocomplete: " + targetSentence.length);
                 autocompletor = new Autocompletor(originalPhrase, data, autocompleteListItems, function(list) {
                     $("#table-autocomplete").empty();
                     $("#table-autocomplete").append(
@@ -102,7 +103,7 @@
             var amountMax = 0;
             for (var i = 0; i < autocompleteLength; i++) {
                 var completed = autocompletor.autocomplete(translated, i, false);
-                for (var j = 0; j < uppercases.length; j++) {
+                for (var j = 0; j < Math.min(uppercases.length, completed.length); j++) {
                     if(uppercases[j]) {
                         completed = completed.slice(0, j) + completed[j].toUpperCase() + completed.slice(j + 1, completed.length);
                     }

@@ -1,0 +1,25 @@
+@(lines: Array[String])
+
+@main("Autocompletor | Translating") {
+    <div class="container">
+        <div class="row">
+            <div class="col-md-12">
+                <h4>Start translating lines:</h4>
+            </div>
+        </div>
+        @for(line <- lines) {
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="panel panel-info">
+                        <div class="panel-heading">
+                            <h3 class="panel-title">@line</h3>
+                        </div>
+                        <div class="panel-body">
+                        Panel content
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div><!-- /.container -->
+}
