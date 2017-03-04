@@ -1,25 +1,221 @@
 @(lines: Array[String])
 
-@main("Autocompletor | Translating") {
+@jsContent = {
+    <script src="@routes.Assets.at("javascripts/autocomplete.js")"></script>
+    <script src="@routes.Assets.at("javascripts/textarea-caret-position.js")"></script>
+    <script>
+        var serverLinesData = [];
+        var currentIndex = 0;
+        var maxIndex = @lines.length;
+        var maxProgress = 2;
+
+        var autocompleteIndex = -1;
+        var autocompletor = null;
+
+        $(document).ready(function() {
+            prepareLine();
+
+            for (var i = 0; i < maxIndex; i++) {
+                (function (index) {
+                    var $selector = $("#line-" + index + " .input-translated");
+
+                    $selector.focus(function() {
+                        startAutocomplete(index);
+
+                        $(".autocomplete-popup").show();
+                    });
+
+                    $selector.focusout(function() {
+                        autocompleteIndex = -1;
+                        autocompletor = null;
+
+                        $(".autocomplete-popup").hide();
+                    });
+
+                    $selector.on("input", function (event) {
+                        if (autocompleteIndex == index && autocompletor != null) {
+                            autocompletor.updateMatchedPhrases($selector.val());
+                        }
+                    });
+
+                    // TAB, 1, 2, 3, 4, 5, 6, 7, 8, 9
+                    var keys = [9, 49, 50, 51, 52, 53, 54, 55, 56, 57];
+                    $selector.keydown(function (event) {
+                        if (autocompleteIndex == index && autocompletor != null) {
+                            var code = event.keyCode || event.which;
+
+                            for (var j = 0; j < keys.length; j++) {
+                                if (code == keys[j] && j < autocompletor.getAutocompleteListLength()) {
+                                    console.log("pressed key " + keys[j]);
+                                    event.preventDefault();
+
+                                    var currentInput = $selector.val();
+                                    var uppercases = [];
+                                    for (var i = 0; i < currentInput.length; i++) {
+                                        uppercases.push(currentInput[i] == currentInput[i].toUpperCase());
+                                    }
+                                    var autocompleted = autocompletor.autocomplete(currentInput, j);
+                                    for (var i = 0; i < uppercases.length; i++) {
+                                        if (uppercases[i]) {
+                                            autocompleted = autocompleted.slice(0, i) + autocompleted[i].toUpperCase() + autocompleted.slice(i + 1, autocompleted.length);
+                                        }
+                                    }
+
+                                    $selector.val(autocompleted);
+                                }
+                            }
+                        }
+                    });
+
+                    // Setter for autocomplete pos.
+                    var element = $selector[0];
+                    var fontSize = getComputedStyle(element).getPropertyValue('font-size');
+
+                    ['keyup', 'click', 'scroll'].forEach(function (event) {
+                        element.addEventListener(event, update);
+                    });
+
+                    function update() {
+                        var coordinates = getCaretCoordinates(element, element.selectionEnd, { debug: !true });
+                        // console.log('(top, left) = (%s, %s)', coordinates.top, coordinates.left);
+                        var pos = $selector.offset();
+                        console.log("font size: " + fontSize);
+                        //$(".autocomplete-popup").css("top", pos.top + coordinates.top + fontSize);
+                        $(".autocomplete-popup").css("top", pos.top + coordinates.top + 20 + "px");
+                        $(".autocomplete-popup").css("left", pos.left + coordinates.left - 50 + "px");
+                    }
+                })(i);
+            }
+        });
+
+        function prepareLine() {
+            var index = currentIndex;
+            var originalSentence = $("#line-" + index).data("sentence");
+            setProgress(1, index, "Sending request to server.");
+
+            $.get("/suggestions", {
+                sentence: originalSentence
+            }, function (data) {
+                setProgress(2, index, "Ready. " + data.length + " suggestions.");
+                console.log("Received from server:");
+                console.log(data);
+
+                serverLinesData[originalSentence] = data;
+
+                currentIndex += 1;
+                if (currentIndex < maxIndex) {
+                    prepareLine();
+                }
+            });
+        }
+
+        function setProgress(current, index, text) {
+            $("#line-" + index + " .progress-bar").attr("style", "width: " + (Math.ceil(current/maxProgress * 100)) + "%;");
+            $("#line-" + index + " .word-progress").text(text);
+        }
+
+        function startAutocomplete(index) {
+            console.log("Starting autocomplete on index: " + index + ".");
+            var originalSentence = $("#line-" + index).data("sentence");
+            if (originalSentence in serverLinesData) {
+                console.log("Data from server found for index: " + index + ".");
+                autocompleteIndex = index;
+
+                autocompletor = new Autocompletor(originalSentence, serverLinesData[originalSentence], 2, function(list) {
+                    $(".autocomplete-popup").empty();
+
+                    if (list.length == 0) {
+                        $(".autocomplete-popup").hide();
+                    } else {
+                        $(".autocomplete-popup").show();
+
+                        var keys = ["TAB", "1", "2", "3", "4", "5", "6", "7", "8", "9"];
+                        for (var i = 0; i < keys.length && i < list.length; i++) {
+                            $(".autocomplete-popup").append(
+                                    '<div class="autocomplete-popup-suggestion"><div class="autocomplete-popup-key">'
+                                    + keys[i]
+                                    + '</div><div class="autocomplete-popup-text">'
+                                    + list[i]
+                                    + '</div></div>'
+                            );
+                        }
+                    }
+                });
+                autocompletor.updateMatchedPhrases($("#line-" + index + " .input-translated").val());
+            }
+        }
+    </script>
+}
+
+@main("Autocompletor | Translating", jsContent) {
     <div class="container">
         <div class="row">
             <div class="col-md-12">
                 <h4>Start translating lines:</h4>
             </div>
         </div>
-        @for(line <- lines) {
-            <div class="row">
-                <div class="col-md-12">
-                    <div class="panel panel-info">
-                        <div class="panel-heading">
-                            <h3 class="panel-title">@line</h3>
-                        </div>
-                        <div class="panel-body">
-                        Panel content
+        @for(i <- 0 until lines.size) {
+            @defining((i % 4) match {
+                case 0 => "success"
+                case 1 => "info"
+                case 2 => "warning"
+                case 3 => "danger"
+            }) { colorClass =>
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="panel panel-@colorClass" id="line-@i" data-sentence="@lines(i)">
+                            <div class="panel-heading">
+                                <h3 class="panel-title">@lines(i)</h3>
+                            </div>
+                            <div class="panel-body">
+                                <div class="row">
+                                    <div class="col-md-8">
+                                        <div class="progress">
+                                            <div class="progress-bar progress-bar-@colorClass progress-bar-striped" role="progressbar" aria-valuenow="40" aria-valuemin="0" aria-valuemax="100" style="width: 0%">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <p class="word-progress">Not started.</p>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-12">
+                                        <textarea class="form-control input-translated" rows="3" style="resize: none;"></textarea>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <br />
+                                    <div class="col-md-6">
+                                        <table class="table table-bordered table-hover table-autocomplete">
+                                            <tr>
+                                                <th>Key</th>
+                                                <th>Word</th>
+                                            </tr>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
+            }
         }
     </div><!-- /.container -->
+
+
+    <div class="autocomplete-popup" style="display: none;">
+        <div class="autocomplete-popup-suggestion">
+            <div class="autocomplete-popup-key">TAB:</div>
+            <div class="autocomplete-popup-text">wat</div>
+        </div>
+        <div class="autocomplete-popup-suggestion">
+            <div class="autocomplete-popup-key">1:</div>
+            <div class="autocomplete-popup-text">auto</div>
+        </div>
+        <div class="autocomplete-popup-suggestion">
+            <div class="autocomplete-popup-key">2:</div>
+            <div class="autocomplete-popup-text">coze</div>
+        </div>
+    </div>
 }

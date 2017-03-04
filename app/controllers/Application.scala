@@ -26,7 +26,9 @@ class Application @Inject() (val phrasesManager: PhrasesManager) extends Control
             success = form => {
                 // Parse input sentence by sentences.
                 val lines = form.split('.')
-                Ok(views.html.translator(lines))
+                Ok(views.html.translator(lines.map(line => {
+                    line + "."
+                })))
             }
         )
     }
