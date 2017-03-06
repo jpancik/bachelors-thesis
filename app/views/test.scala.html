@@ -1,9 +1,9 @@
-@(testDataPath: String, testDataFileJson: String)
+@(testDataPath: String)
 
 @jsContent = {
 <script src="@routes.Assets.at("javascripts/autocomplete.js")"></script>
 <script>
-    var testData = JSON.parse('@Html(testDataFileJson)');
+    var testData = [];
 
     var $inputTimeDelay = $("#input-time-delay");
     var $inputAutocompleteItems = $("#input-autocomplete-items");
@@ -34,10 +34,15 @@
         $buttonStart.click(function(event) {
             event.preventDefault();
 
-            delay = parseInt($inputTimeDelay.val());
-            autocompleteListItems = parseInt($inputAutocompleteItems.val());
+            $.getJSON('assets/@testDataPath', function(data) {
+                testData = data;
+                //console.log("received data: " + testData);
 
-            startSimulation();
+                delay = parseInt($inputTimeDelay.val());
+                autocompleteListItems = parseInt($inputAutocompleteItems.val());
+
+                startSimulation();
+            });
         });
 
         updateStatistics(0);

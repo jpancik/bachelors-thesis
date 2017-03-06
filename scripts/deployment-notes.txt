@@ -38,4 +38,9 @@ copy /public folder
 sudo jp-server/bachelorsthesisimplementation-1.0/bin/bachelorsthesisimplementation -Dconfig.file=/home/jurajpancik/jp-server/bachelorsthesisimplementation-1.0/conf/production.conf -Dhttp.port=80 -J-Xmx1G
 DON'T FORGET SUDO!!! care about memory
 
-running instance pid: cat /home/jurajpancik/jp-server/bachelorsthesisimplementation-1.0/RUNNING_PID
+running instance pid:
+sudo cat /home/jurajpancik/jp-server/bachelorsthesisimplementation-1.0/RUNNING_PID
+sudo rm /home/jurajpancik/jp-server/bachelorsthesisimplementation-1.0/RUNNING_PID
+
+run in background
+sudo jp-server/bachelorsthesisimplementation-1.0/bin/bachelorsthesisimplementation -Dconfig.file=/home/jurajpancik/jp-server/bachelorsthesisimplementation-1.0/conf/production.conf -Dhttp.port=80 -J-Xmx1G > jp-data/log-1.txt 2> jp-data/log-2.txt & disown
