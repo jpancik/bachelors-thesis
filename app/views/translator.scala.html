@@ -1,4 +1,4 @@
-@(lines: Array[String])
+@(lines: List[String])
 
 @jsContent = {
     <script src="@routes.Assets.at("javascripts/autocomplete.js")"></script>
@@ -54,8 +54,11 @@
                                     for (var i = 0; i < currentInput.length; i++) {
                                         uppercases.push(currentInput[i] == currentInput[i].toUpperCase());
                                     }
+                                    if (uppercases.length == 0) {
+                                        uppercases.push(true);
+                                    }
                                     var autocompleted = autocompletor.autocomplete(currentInput, j);
-                                    for (var i = 0; i < uppercases.length; i++) {
+                                    for (var i = 0; i < Math.min(uppercases.length, autocompleted.length); i++) {
                                         if (uppercases[i]) {
                                             autocompleted = autocompleted.slice(0, i) + autocompleted[i].toUpperCase() + autocompleted.slice(i + 1, autocompleted.length);
                                         }
@@ -129,13 +132,18 @@
                     } else {
                         $(".autocomplete-popup").show();
 
+                        var capitalize = false;
+                        if ($("#line-" + index + " .input-translated").val().length == 0) {
+                            capitalize = true;
+                        }
+
                         var keys = ["TAB", "1", "2", "3", "4", "5", "6", "7", "8", "9"];
                         for (var i = 0; i < keys.length && i < list.length; i++) {
                             $(".autocomplete-popup").append(
                                     '<div class="autocomplete-popup-suggestion"><div class="autocomplete-popup-key">'
                                     + keys[i]
                                     + '</div><div class="autocomplete-popup-text">'
-                                    + list[i]
+                                    + (capitalize ? list[i].capitalizeFirstLetter() : list[i])
                                     + '</div></div>'
                             );
                         }

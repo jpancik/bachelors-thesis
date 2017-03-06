@@ -1,0 +1,25 @@
+deployed droplet
+
+server setup: https://www.digitalocean.com/community/tutorials/initial-server-setup-with-ubuntu-14-04
+
+user jurajpancik
+
+postgres install: https://www.digitalocean.com/community/tutorials/how-to-install-and-use-postgresql-on-ubuntu-16-04
+
+created role jurajpancik
+created db bachelorthesis
+
+followed: https://www.digitalocean.com/community/questions/how-to-connect-remotely-to-the-postgres-db-on-the-server-from-the-local-client-machine
+pg_hba.conf
+by adding this:
+host    all             all             89.214.182.137/24        trust
+
+postgresql.conf
+to:
+listen_addresses='*'
+
+sudo service postgresql restart
+
+ALTER USER "jurajpancik" WITH PASSWORD 'new_password';
+
+connected successfully! nice

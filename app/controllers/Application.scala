@@ -9,6 +9,7 @@ import play.api.mvc._
 
 import scala.concurrent._
 import ExecutionContext.Implicits.global
+import scala.collection.mutable.ArrayBuffer
 import scala.io.Source
 
 class Application @Inject() (val phrasesManager: PhrasesManager) extends Controller {
@@ -25,10 +26,29 @@ class Application @Inject() (val phrasesManager: PhrasesManager) extends Control
             hasErrors = form => Redirect(routes.Application.inputLines()),
             success = form => {
                 // Parse input sentence by sentences.
-                val lines = form.split('.')
-                Ok(views.html.translator(lines.map(line => {
-                    line + "."
-                })))
+                val lines = new ArrayBuffer[String]
+                var index: Int = 0
+                var encountered: Boolean = false
+                val builder = new StringBuilder()
+                while (index < form.length) {
+                    if(form.charAt(index) == '.' || form.charAt(index) == '?' || form.charAt(index) == '!') {
+                        encountered = true
+                    } else {
+                        if (encountered && form.charAt(index) != ' ') {
+                            encountered = false
+                            lines += builder.toString
+                            builder.clear()
+                        }
+                    }
+
+                    builder.append(form.charAt(index))
+                    index += 1
+                }
+                if (builder.nonEmpty) {
+                    lines += builder.toString
+                }
+
+                Ok(views.html.translator(lines.toList))
             }
         )
     }
