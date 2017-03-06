@@ -23,3 +23,19 @@ sudo service postgresql restart
 ALTER USER "jurajpancik" WITH PASSWORD 'new_password';
 
 connected successfully! nice
+
+copied phrases over sftmp fillezilla
+
+added swap https://www.digitalocean.com/community/tutorials/how-to-add-swap-space-on-ubuntu-16-04
+
+completed loading .csv data into db
+
+https://www.digitalocean.com/community/tutorials/how-to-install-java-with-apt-get-on-ubuntu-16-04
+
+create dist of play framework through activator, unzip
+copy /public folder
+
+sudo jp-server/bachelorsthesisimplementation-1.0/bin/bachelorsthesisimplementation -Dconfig.file=/home/jurajpancik/jp-server/bachelorsthesisimplementation-1.0/conf/production.conf -Dhttp.port=80 -J-Xmx1G
+DON'T FORGET SUDO!!! care about memory
+
+running instance pid: cat /home/jurajpancik/jp-server/bachelorsthesisimplementation-1.0/RUNNING_PID
