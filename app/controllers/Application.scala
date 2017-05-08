@@ -5,6 +5,7 @@ import javax.inject.Inject
 import core.PhrasesManager
 import forms.ParseLinesForm
 import play.api.libs.json.Json
+import play.api.libs.ws.WSClient
 import play.api.mvc._
 
 import scala.concurrent._
@@ -54,9 +55,8 @@ class Application @Inject() (val phrasesManager: PhrasesManager) extends Control
     }
 
     def test = Action {
-        val filePath = "data/test-data-wikipedia.500.json"
         //val json = Json.parse(Source.fromFile("public/" + filePath).mkString);
-        Ok(views.html.test(filePath))
+        Ok(views.html.test())
     }
 
     def getSuggestions(sentence: String) = Action.async {

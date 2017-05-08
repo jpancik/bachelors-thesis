@@ -191,7 +191,7 @@ class Autocompletor {
         var words = translatedText.split(" ");
         // Try each word except last to match as phrase.
         for (var j = 0; j < words.length - 2; j++) {
-            for (var end = words.length - 2; end > j; end--) {
+            for (var end = words.length -  2; end > j; end--) {
                 // from j to end try to match phrase
 
                 var tryToMatch = words.slice(j, end).join(" ");

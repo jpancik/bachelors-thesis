@@ -1,0 +1,43 @@
+pri instalacii:
+treba vymazat z cmakelistu na mgize ten -lt ci daco na mac os
+mgiza bude hubovat za boost, boost treba myslim skompilovat cez
+boost: ./b2 -j8 --prefix=$PWD --libdir=$PWD/lib64 --layout=system link=static toolset=clang  install || echo FAILURE
+moses: ./bjam --with-boost=/Users/hieu/workspace/boost/boost_1_59_0.clang/ -j8 toolset=clang
+
+sudo ./train-model.perl -external-bin-dir /Users/JurajPancik/School/bakalarka/mgiza/mgizapp/bin -root-dir /Users/JurajPancik/School/bakalarka/jp-training --parallel --corpus /Users/JurajPancik/School/bakalarka/jp-training/data/en-sk.1000.clean --f en --e sk --input-factor-max 4 --lm 0:3:/Users/JurajPancik/School/bakalarka/europarl.en.srilm
+
+
+training model skript bolo treba vykomentovat, kde sa snazi najst mgizu v external bin dire
+
+training model skript bolo treba vykomentovat if co chceckuje mergovanie mgizy vystupu
+
+
+na corpus treba zavolat:
+tokenizer
+truecasing
+cleaning
+
+tu su vsetky steps popisane: http://www.statmt.org/moses/?n=moses.baseline
+
+po natrenovani, config treba zmazat input factors ak to nefici
+
+trenoval som en -> sk na 903 riadkoch, daco malo to vie prekladat, treba viac
+
+idem na 500k riadkov corpus
+
+pre obidva jazyky:
+	mosesdecoder/scripts/tokenizer/tokenizer.perl -l sk < jp-training/en-sk.500000/corpus.en-sk.sk > jp-training/en-sk.500000/corpus.en-sk.tok.sk
+	mosesdecoder/scripts/recaser/train-truecaser.perl --model jp-training/en-sk.500000/truecase-model.sk --corpus jp-training/en-sk.500000/corpus.en-sk.tok.sk
+	//nepouzil som lebo dako divne davalo upper case
+	//mosesdecoder/scripts/recaser/truecase.perl  --model jp-training/en-sk.500000/truecase-model.en < jp-training/en-sk.500000/corpus.en-sk.tok.en > jp-training/en-sk.500000/corpus.en-sk.true.en
+	mosesdecoder/scripts/tokenizer/lowercase.perl < jp-training/en-sk.500000/corpus.en-sk.tok.en > jp-training/en-sk.500000/corpus.en-sk.low.en
+mosesdecoder/scripts/training/clean-corpus-n.perl jp-training/en-sk.500000/corpus.en-sk.low en sk jp-training/en-sk.500000/corpus.en-sk.clean 1 80
+
+sudo mosesdecoder/scripts/training/train-model.perl -external-bin-dir mgiza/mgizapp/bin -root-dir jp-training/en-sk.500000/ --parallel --corpus jp-training/en-sk.500000/corpus.en-sk.clean --f en --e sk --input-factor-max 4 --lm 0:3:/Users/JurajPancik/School/bakalarka/jp-training/en-sk.500000/corpus.en-sk.arpa.sk
+
+
+CZECH <-> ENGLISH
+http://lindat.mff.cuni.cz/services/moses/api-docs.php
+
+count unique words in file
+perl -nle '$w{$_}++ for grep /\w/, map { s/[\. ,]*$//g; lc($_) } split; sub END { printf("%7d\t%s\n", $c, $w) while (($w,$c) = each(%w)) }' en-cs.phrase-table.1000.txt | wc -l
